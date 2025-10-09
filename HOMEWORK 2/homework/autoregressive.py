@@ -55,10 +55,77 @@ class AutoregressiveModel(torch.nn.Module, Autoregressive):
 
     def __init__(self, d_latent: int = 128, n_tokens: int = 2**10):
         super().__init__()
-        raise NotImplementedError()
+        self.n_tokens = n_tokens
+        self.d_latent = d_latent
+
+        self.embedding = torch.nn.Embedding(n_tokens, d_latent)
+
+        # Optional positional embedding
+        self.pos_embedding = torch.nn.Parameter(torch.randn(1, 600, d_latent))  # up to 600 positions
+
+        # One transformer encoder layer
+        encoder_layer = torch.nn.TransformerEncoderLayer(
+            d_model=d_latent,
+            nhead=8,
+            dim_feedforward=512,
+            batch_first=True  # input shape: (B, seq_len, d_model)
+        )
+        self.transformer = torch.nn.TransformerEncoder(encoder_layer, num_layers=4)
+
+        self.output_head = torch.nn.Linear(d_latent, n_tokens)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        raise NotImplementedError()
+        B, H, W = x.shape
+        seq_len = H * W
+        x = x.view(B, seq_len)  # (B, seq_len)
+
+        x_emb = self.embedding(x)  # (B, seq_len, d_latent)
+
+        # Positional embedding (optional but helps)
+        x_emb = x_emb + self.pos_embedding[:, :seq_len, :]  # (B, seq_len, d_latent)
+
+        # Shift input right by 1: prepend a 0-token (or learnable start token)
+        pad = torch.zeros((B, 1, self.d_latent), device=x.device)
+        x_in = torch.cat([pad, x_emb[:, :-1, :]], dim=1)  # (B, seq_len, d_latent)
+
+        # Causal mask
+        mask = torch.nn.Transformer.generate_square_subsequent_mask(seq_len).to(x.device)  # (seq_len, seq_len)
+
+        x_out = self.transformer(x_in, mask=mask)  # (B, seq_len, d_latent)
+
+        logits = self.output_head(x_out)  # (B, seq_len, n_tokens)
+        logits = logits.view(B, H, W, self.n_tokens)  # (B, H, W, n_tokens)
+        return logits, {}
 
     def generate(self, B: int = 1, h: int = 30, w: int = 20, device=None) -> torch.Tensor:  # noqa
-        raise NotImplementedError()
+        self.eval()
+        device = device or next(self.parameters()).device
+
+        seq_len = h * w
+        generated = torch.zeros((B, seq_len), dtype=torch.long, device=device)
+
+        for t in range(seq_len):
+            with torch.no_grad():
+                x = generated.clone()
+                x_emb = self.embedding(x)
+
+                x_emb = x_emb + self.pos_embedding[:, :seq_len, :]
+
+                # Shift right
+                if t > 0:
+                    pad = torch.zeros((B, 1, self.d_latent), device=device)
+                    x_in = torch.cat([pad, x_emb[:, :-1, :]], dim=1)
+                else:
+                    x_in = torch.zeros((B, 1, self.d_latent), device=device)
+
+                # Causal mask
+                mask = torch.nn.Transformer.generate_square_subsequent_mask(seq_len).to(device)
+
+                out = self.transformer(x_in, mask=mask)  # (B, seq_len, d_latent)
+                logits = self.output_head(out)  # (B, seq_len, n_tokens)
+
+                probs = torch.softmax(logits[:, t, :], dim=-1)  # (B, n_tokens)
+                next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)  # (B,)
+                generated[:, t] = next_token
+
+        return generated.view(B, h, w)  # reshape to image shape
