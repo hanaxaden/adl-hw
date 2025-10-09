@@ -106,26 +106,25 @@ class AutoregressiveModel(torch.nn.Module, Autoregressive):
 
         for t in range(seq_len):
             with torch.no_grad():
-                x = generated.clone()
+                x = generated[:, :t + 1]  # Only use generated tokens up to current step
                 x_emb = self.embedding(x)
 
-                x_emb = x_emb + self.pos_embedding[:, :seq_len, :]
+                # Positional embedding slice
+                x_emb = x_emb + self.pos_embedding[:, :t + 1, :]
 
-                # Shift right
-                if t > 0:
-                    pad = torch.zeros((B, 1, self.d_latent), device=device)
-                    x_in = torch.cat([pad, x_emb[:, :-1, :]], dim=1)
-                else:
-                    x_in = torch.zeros((B, 1, self.d_latent), device=device)
+                # Shift input right by 1 using padding
+                pad = torch.zeros((B, 1, self.d_latent), device=device)
+                x_in = torch.cat([pad, x_emb[:, :-1, :]], dim=1)
 
-                # Causal mask
-                mask = torch.nn.Transformer.generate_square_subsequent_mask(seq_len).to(device)
+                # Create a causal mask of size (t+1, t+1)
+                mask = torch.nn.Transformer.generate_square_subsequent_mask(t + 1).to(device)
 
-                out = self.transformer(x_in, mask=mask)  # (B, seq_len, d_latent)
-                logits = self.output_head(out)  # (B, seq_len, n_tokens)
+                out = self.transformer(x_in, mask=mask)  # (B, t+1, d_latent)
+                logits = self.output_head(out)  # (B, t+1, n_tokens)
 
-                probs = torch.softmax(logits[:, t, :], dim=-1)  # (B, n_tokens)
+                # Sample next token from the last position
+                probs = torch.softmax(logits[:, -1, :], dim=-1)  # (B, n_tokens)
                 next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)  # (B,)
                 generated[:, t] = next_token
 
-        return generated.view(B, h, w)  # reshape to image shape
+        return generated.view(B, h, w)
