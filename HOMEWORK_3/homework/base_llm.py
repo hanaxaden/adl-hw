@@ -104,20 +104,31 @@ class BaseLLM:
                 )
                 for r in self.batched_generate(prompts[idx : idx + micro_batch_size], num_return_sequences, temperature)
             ]
-        self.tokenizer.padding_side = "left"  # Set padding side to left for generation
-        input = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation = True ) #tokenize the prompts
-        input = {k: v.to(self.device) for k, v in input.items() } #moving to the device 
-    
-        number = num_return_sequences or 1
-        outputs = self.model.generate(**input,max_new_tokens=50, do_sample = (temperature >0.0),num_return_sequences = number, eos_token_id = self.tokenizer.eos_token_id)
-        
-        generate_token = outputs[:,input["input_ids"].shape[1]:] #generate the outputs
-        decode_outputs = self.tokenizer.batch_decode(generate_token, skip_special_tokens=True) 
-        
-        if number >1:
-            return [decode_outputs[i:i+number]for i in range(0,len(decode_outputs),number)]
-        
-        return decode_outputs #return the generated outputs
+        # Tokenize
+        inputs = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation=True)
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+        num_seq = num_return_sequences or 1
+        outputs = self.model.generate(
+            **inputs,
+            max_new_tokens=20,                # Short for numeric answers
+            do_sample=(temperature > 0.0),
+            temperature=temperature,
+            num_return_sequences=num_seq,
+            eos_token_id=self.tokenizer.eos_token_id,
+            repetition_penalty=1.2,
+            early_stopping=True
+        )
+
+        # Remove prompt tokens
+        gen_tokens = outputs[:, inputs["input_ids"].shape[1]:]
+        decoded = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+
+        # Handle multiple sequences
+        if num_seq > 1:
+            return [decoded[i:i+num_seq] for i in range(0, len(decoded), num_seq)]
+        return decoded
+
 
     def answer(self, *questions) -> list[float]:
         """
@@ -148,3 +159,4 @@ if __name__ == "__main__":
     from fire import Fire
 
     Fire({"test": test_model})
+
