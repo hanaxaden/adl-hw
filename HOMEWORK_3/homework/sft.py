@@ -82,16 +82,18 @@ def train_model(output_dir: str, **kwargs):
 
     # Training
     training_args = TrainingArguments(
-        output_dir=output_dir,
-        num_train_epochs=3,
-        learning_rate=2e-4,
-        per_device_train_batch_size=32,
-        gradient_checkpointing=True,
-        logging_dir=output_dir,
-        report_to="tensorboard",
-        save_total_limit=1,
-        logging_steps=10,
-    )
+    output_dir=output_dir,
+    num_train_epochs=6,
+    learning_rate=2e-4,
+    per_device_train_batch_size=16,  # safer for memory
+    gradient_checkpointing=True,
+    logging_dir=output_dir,
+    report_to="tensorboard",
+    save_total_limit=2,             # keep last 2 checkpoints
+    logging_steps=50,               # less frequent logging
+    fp16=True,                       # mixed precision, faster on GPU
+)
+
 
     trainer = Trainer(
         model=llm.model,
