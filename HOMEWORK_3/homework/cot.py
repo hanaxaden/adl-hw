@@ -1,30 +1,40 @@
-from homework.base_llm import BaseLLM
+from .base_llm import BaseLLM
 
 
 class CoTModel(BaseLLM):
     def format_prompt(self, question: str) -> str:
         """
-        Format the question into a step-by-step reasoning template.
-        The model should always produce a final answer inside <answer>...</answer>.
+        Take a question and convert it into a chat template. The LLM will likely answer much
+        better if you provide a chat template. self.tokenizer.apply_chat_template can help here
         """
-    messages = [
-    {"role": "system", "content": "You are a helpful assistant. Solve unit conversions step by step."},
-    {"role": "user", "content": "Convert 5 meters to feet."},
-    {"role": "assistant", "content": "1 meter = 3.28084 feet. 5 * 3.28084 = <answer>16.4042</answer>"}
-    ]
-    
-    prompt_str = tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
-    print(prompt_str)
 
+        messages = [
+            {"role": "system",    "content": "You will perform unit conversions and be concise."},
+            
+            # Example 1: speed
+            {"role": "user", "content": "Can you convert 5 meters to feet?"},
+            {"role": "assistant", "content": "1 meter = 3.28084 ft. 5 * 3.28084 = <answer>16.4042</answer>"},
 
-        # Apply chat template using the tokenizer
-        ##prompt = self.tokenizer.apply_chat_template(
-            ##messages,
-            ##add_generation_prompt=True,
-            ##tokenize=False
-        ##)
-        ##return prompt
-##
+            
+            # Example 2: volume
+            {"role": "user",      "content": "Could you convert 1 gallons to liters?"},
+            {"role": "assistant", "content": "1 gallon = 3.78541 L. 1 * 3.78541 = <answer>3.78541</answer>"},
+            
+            # Example 3: time
+            {"role": "user", "content": "How many grams are there in 6 kg?"},
+            {"role": "assistant", "content": "1 kg = 1000 g. 6 * 1000 = <answer>6000</answer>"},
+
+            
+            # actual query
+            {"role": "user",      "content": question},
+        ]
+
+        return self.tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize = False,
+        )
+
 
 def load() -> CoTModel:
     return CoTModel()
