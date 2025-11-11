@@ -10,10 +10,15 @@ class CoTModel(BaseLLM):
 
         ##creating messages for the chat template to use to answer the question
         messages = [
-            {"role": "system", "content": "You are a helpful assistant. Be concise.Be clear."},
+            {"role": "system", "content": "You are a helpful assistant. Be concise and clear."},
+           
+           
             {"role": "user", "content": "Q: How many centimeters are there in 2 meters?"},
-            {"role": "assistant", "content": ("A: 1 meter = 100 centimeters. So 2 meters = 2 × 100 = 200 centimeters. ""<answer>200</answer>")},
-            {"role": "user", "content": f"Q: {question}"},
+            {"role": "assistant", "content": 
+             "A: 1 meter = 100 centimeters. Multiply 2 × 100 = 200. "
+             "<answer>200</answer>"},
+            
+            {"role": "user", "content": f"Q: {question}"}
              
         ]
         prompt = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
@@ -36,3 +41,4 @@ if __name__ == "__main__":
     from fire import Fire
 
     Fire({"test": test_model, "load": load})
+
