@@ -7,43 +7,24 @@ class CoTModel(BaseLLM):
         Format the question into a step-by-step reasoning template.
         The model should always produce a final answer inside <answer>...</answer>.
         """
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a helpful assistant. "
-                    "Always reason step by step before giving the final answer. "
-                    "The final answer must be inside <answer>...</answer> tags, nothing else."
-                )
-            },
-            # Example to show format
-            {
-                "role": "user",
-                "content": "Q: How many centimeters are there in 2 meters?"
-            },
-            {
-                "role": "assistant",
-                "content": (
-                    "Step 1: 1 meter = 100 centimeters.\n"
-                    "Step 2: Multiply 2 × 100 = 200.\n"
-                    "<answer>200</answer>"
-                )
-            },
-            # Actual question for the model to answer
-            {
-                "role": "user",
-                "content": f"Q: {question}"
-            }
-        ]
+    messages = [
+    {"role": "system", "content": "You are a helpful assistant. Solve unit conversions step by step."},
+    {"role": "user", "content": "Convert 5 meters to feet."},
+    {"role": "assistant", "content": "1 meter = 3.28084 feet. 5 * 3.28084 = <answer>16.4042</answer>"}
+    ]
+    
+    prompt_str = tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+    print(prompt_str)
+
 
         # Apply chat template using the tokenizer
-        prompt = self.tokenizer.apply_chat_template(
-            messages,
-            add_generation_prompt=True,
-            tokenize=False
-        )
-        return prompt
-
+        ##prompt = self.tokenizer.apply_chat_template(
+            ##messages,
+            ##add_generation_prompt=True,
+            ##tokenize=False
+        ##)
+        ##return prompt
+##
 
 def load() -> CoTModel:
     return CoTModel()
