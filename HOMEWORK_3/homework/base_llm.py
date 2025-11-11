@@ -105,11 +105,18 @@ class BaseLLM:
                 for r in self.batched_generate(prompts[idx : idx + micro_batch_size], num_return_sequences, temperature)
             ]
         self.tokenizer.padding_side = "left"  # Set padding side to left for generation
-        input = self.tokenizer(prompts, return_tensors="pt", padding=True) #tokenize the prompts
+        input = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation = True ) #tokenize the prompts
         input = {k: v.to(self.device) for k, v in input.items() } #moving to the device 
     
-        outputs = self.model.generate(**input,max_new_tokens=50) #generate the outputs
-        decode_outputs = self.tokenizer.batch_decode(outputs, skip_special_tokens=True) #decode the outputs
+        number = num_return_sequences or 1
+        outputs = self.model.generate(**input,max_new_tokens=50, do_sample = (temperature >0.0),num_return_sequences = number, eos_token_id = self.tokenizer.eos_token_id)
+        
+        generate_token = outputs[:,input["input_ids"].shape[1]:] #generate the outputs
+        decode_outputs = self.tokenizer.batch_decode(generate_token, skip_special_tokens=True) 
+        
+        if number >1:
+            return [decode_outputs[i:i+number]for i in range(0,len(decode_outputs),number)]
+        
         return decode_outputs #return the generated outputs
 
     def answer(self, *questions) -> list[float]:
