@@ -12,21 +12,22 @@ class CoTModel(BaseLLM):
         messages = [
             {"role": "system",    "content": "You will perform unit conversions and be concise."},
             
-            # Example 1: speed
-            {"role": "user",      "content": "Please convert 53 km/h into m/s."},
-            {"role": "assistant", "content": "1 km/h = 0.277778 m/s. 53 * 0.277778 = <answer>14.722234</answer>"},
-            
-            # Example 2: volume
-            {"role": "user",      "content": "Could you convert 1 gallon to liters?"},
-            {"role": "assistant", "content": "1 gallon = 3.78541 L. 1 * 3.78541 = <answer>3.78541</answer>"},
-            
-            # Example 3: time
-            {"role": "user",      "content": "How many minutes are there in 4 hours?"},
-            {"role": "assistant", "content": "1 hour = 60 m. 4 * 60 = <answer>240</answer>"},
-            
-            # actual query
+            # Example D: temperature
+            {"role": "user",      "content": "Convert 68°F to Celsius."},
+            {"role": "assistant", "content": "C = (F - 32) * 5/9. (68 - 32) * 5/9 = <answer>20</answer>"},
+
+            # Example E: volume
+            {"role": "user",      "content": "Please convert 500 milliliters into liters."},
+            {"role": "assistant", "content": "1 L = 1000 mL. 500 / 1000 = <answer>0.5</answer>"},
+
+            # Example F: speed
+            {"role": "user",      "content": "Could you convert 30 m/s to km/h?"},
+            {"role": "assistant", "content": "1 m/s = 3.6 km/h. 30 * 3.6 = <answer>108</answer>"},
+
+            # actual query placeholder
             {"role": "user",      "content": question},
-        ]
+            ]
+
 
         return self.tokenizer.apply_chat_template(
             messages,

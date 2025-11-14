@@ -25,6 +25,7 @@ def load() -> BaseLLM:
 
     return llm
 
+##copied over from sft.py
 def tokenize(tokenizer, question: str, answer: str):
     """
     1) Append <EOS> to the question-answer pair.
@@ -35,17 +36,18 @@ def tokenize(tokenizer, question: str, answer: str):
     eos = tokenizer.eos_token
     full_text = f"{question} {answer}{eos}"
 
-    tokenizer.padding_side = "right"
+    tokenizer.padding_side = "right" #right padding 
     tokenizer.pad_token = eos
     enc = tokenizer(full_text,
                     padding="max_length",
                     truncation=True,
                     max_length=128)
 
-    # Mask out the question in the labels
+    # mask questions 
     q_len = len(tokenizer(question)["input_ids"])
     labels = [-100] * q_len + enc["input_ids"][q_len:]
-    # Also mask padding
+    
+
     labels = [
         -100 if m == 0 else l
         for l, m in zip(labels, enc["attention_mask"])
@@ -66,6 +68,7 @@ def format_example(prompt: str, answer: str) -> dict[str, str]:
         "answer": f"<answer>{ans}</answer>"
     }
 
+#copied from sft.py
 class TokenizedDataset:
     """
     Takes any dataset yielding (q, a) and a format_fn,
@@ -84,17 +87,18 @@ class TokenizedDataset:
         fe = self.format_fn(q, a)
         return tokenize(self.tokenizer, **fe)
 
-
+#train model
 def train_model(
     output_dir: str,
     learning_rate: float = 5e-4,
     num_train_epochs: int = 5,
     per_device_eval_batch_size: int = 8,
 ):
+    #load model
     llm = BaseLLM()
     tokenizer = llm.tokenizer
     backbone = llm.model
-    
+    #set up lora congig 
     lora_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         inference_mode=False,
@@ -104,11 +108,12 @@ def train_model(
         target_modules="all-linear",
         lora_dropout=0.1,
     )
-    
+    #converts the base model into lora model 
     model = get_peft_model(backbone, lora_config) 
     model.enable_input_require_grads()
     model.print_trainable_parameters()
      
+     #training arguments 
     training_args = TrainingArguments(
         output_dir=output_dir,
         logging_dir=output_dir,
@@ -119,7 +124,7 @@ def train_model(
         gradient_checkpointing=True,
         report_to="tensorboard",  
     )
-    
+    #tokens 
     trainer = Trainer(
         model=model,
         args=training_args,

@@ -7,7 +7,7 @@ from peft import LoraConfig, get_peft_model, TaskType
 
 
 
-
+#loads base model and lora adapter called sft model
 def load() -> BaseLLM:
     from pathlib import Path
 
@@ -22,7 +22,7 @@ def load() -> BaseLLM:
 
     return llm
 
-
+#sets up toeknizer with padding truncates at 128 
 def tokenize(tokenizer, question: str, answer: str):
     """
     Tokenize a data element.
@@ -33,15 +33,20 @@ def tokenize(tokenizer, question: str, answer: str):
     """
     full_text = f"{question} {answer}{tokenizer.eos_token}"
 
-    tokenizer.padding_side = "right"
+    tokenizer.padding_side = "right" #right padding 
     tokenizer.pad_token = tokenizer.eos_token
     full = tokenizer(full_text, padding="max_length", truncation=True, max_length=128)
 
     input_ids = full["input_ids"]
     question_len = len(tokenizer(question)["input_ids"])
 
-    # Create labels: mask out the prompt part
+    #setting up training label and masks them
     labels = [-100] * question_len + input_ids[question_len:]
+
+
+
+#masks out padding token 
+
 
     for i in range(len(labels)):
         if full["attention_mask"][i] == 0:
@@ -61,7 +66,7 @@ def format_example(prompt: str, answer: str) -> dict[str, str]:
       "answer": f"<answer>{ans}</answer>",
     }
 
-
+#turns dataset tuple into question answer dictionary 
 class TokenizedDataset:
     def __init__(self, tokenizer, data: Dataset, format_fn):
         """
@@ -90,10 +95,12 @@ def train_model(
     num_train_epochs: int = 5,
     per_device_eval_batch_size: int = 32,
 ):
+   #loads the model and tokenizer 
     llm = BaseLLM()
     tokenizer = llm.tokenizer
     backbone = llm.model
     
+    #configures the lora 
     lora_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         inference_mode=False,
@@ -104,10 +111,14 @@ def train_model(
         lora_dropout=0.1,
     )
     
+
+    #converts base model to lora version
     model = get_peft_model(backbone, lora_config) 
     model.enable_input_require_grads()
     model.print_trainable_parameters()
      
+
+     #training paramets 
     training_args = TrainingArguments(
         output_dir=output_dir,
         logging_dir=output_dir,
